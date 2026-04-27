@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Emergency Vehicle Shortest Path Finder</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#050810;--bg2:#080d1a;--bg3:#0d1525;--panel:#0a1020;
+  --border:#1a2540;--border2:#243050;
+  --accent:#00d4ff;--accent2:#ff4560;--accent3:#00ff88;--accent4:#ffaa00;
+  --text:#c8d8f0;--text2:#607090;--text3:#304060;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+.topbar{background:linear-gradient(90deg,#080d1a,#0a1428,#080d1a);border-bottom:1px solid var(--border2);padding:0 20px;height:52px;display:flex;align-items:center;gap:16px;position:relative;flex-shrink:0;}
+.topbar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0.5;}
+.sirens{display:flex;gap:8px;align-items:center;}
+.siren{width:12px;height:12px;border-radius:50%;position:relative;}
+.siren::after{content:'';position:absolute;inset:-3px;border-radius:50%;animation:sirenGlow 1s ease-in-out infinite;}
+.siren.red{background:#ff2244;box-shadow:0 0 8px #ff2244;}
+.siren.red::after{background:#ff224433;}
+.siren.blue{background:#0088ff;box-shadow:0 0 8px #0088ff;animation-delay:.5s;}
+.siren.blue::after{background:#0088ff33;animation-delay:.5s;}
+@keyframes sirenGlow{0%,100%{transform:scale(1);opacity:0.3;}50%{transform:scale(1.8);opacity:0.8;}}
+.topbar-title{font-family:'Orbitron',monospace;font-size:14px;font-weight:700;letter-spacing:2px;color:#fff;text-shadow:0 0 20px var(--accent);}
+.topbar-sub{font-size:11px;color:var(--text2);letter-spacing:1px;font-family:'Share Tech Mono',monospace;}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:16px;}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--accent3);box-shadow:0 0 6px var(--accent3);animation:statusPulse 2s ease-in-out infinite;}
+@keyframes statusPulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+.status-text{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--accent3);letter-spacing:1px;}
+.layout{display:grid;grid-template-columns:290px 1fr;flex:1;overflow:hidden;}
+.sidebar{background:var(--panel);border-right:1px solid var(--border2);display:flex;flex-direction:column;overflow:hidden;position:relative;}
+.sidebar::before{content:'';position:absolute;top:0;right:0;width:1px;height:100%;background:linear-gradient(180deg,transparent,var(--accent),transparent);opacity:0.3;}
+.tabs{display:flex;border-bottom:1px solid var(--border2);background:var(--bg2);flex-shrink:0;}
+.tab{flex:1;padding:11px 4px;font-size:10px;font-family:'Orbitron',monospace;font-weight:600;letter-spacing:1px;text-align:center;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);background:linear-gradient(180deg,transparent,rgba(0,212,255,0.05));}
+.tab:hover:not(.active){color:var(--text2);}
+.panel{display:none;flex-direction:column;flex:1;overflow-y:auto;padding:14px;}
+.panel.active{display:flex;}
+.panel::-webkit-scrollbar{width:3px;}
+.panel::-webkit-scrollbar-thumb{background:var(--border2);}
+.section-label{font-family:'Orbitron',monospace;font-size:9px;font-weight:600;letter-spacing:2px;color:var(--accent);margin:14px 0 6px;display:flex;align-items:center;gap:8px;}
+.section-label:first-child{margin-top:0;}
+.section-label::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border2),transparent);}
+input,select{width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:7px 10px;font-size:12px;font-family:'Rajdhani',sans-serif;font-weight:500;outline:none;margin-bottom:6px;transition:border-color .2s,box-shadow .2s;}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,212,255,0.15);}
+select option{background:var(--bg3);}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+button{width:100%;padding:8px 12px;border-radius:4px;border:1px solid transparent;font-size:11px;font-family:'Orbitron',monospace;font-weight:600;letter-spacing:1px;cursor:pointer;transition:all .2s;margin-bottom:6px;position:relative;overflow:hidden;}
+.btn-dispatch{background:linear-gradient(135deg,#ff2244,#ff4560);color:#fff;border-color:#ff4560;box-shadow:0 0 15px rgba(255,69,96,0.4);font-size:12px;padding:10px;}
+.btn-dispatch:hover{box-shadow:0 0 25px rgba(255,69,96,0.7);transform:translateY(-1px);}
+.btn-blue{background:rgba(0,136,255,0.15);color:#4da8ff;border-color:#0066cc;}
+.btn-blue:hover{background:rgba(0,136,255,0.25);box-shadow:0 0 10px rgba(0,136,255,0.3);}
+.btn-green{background:rgba(0,255,136,0.1);color:#00cc6a;border-color:#00994d;}
+.btn-green:hover{background:rgba(0,255,136,0.2);box-shadow:0 0 10px rgba(0,255,136,0.3);}
+.btn-ghost{background:rgba(255,255,255,0.03);color:var(--text2);border-color:var(--border2);}
+.btn-ghost:hover{color:var(--text);}
+.vcard{background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:10px 12px;margin-bottom:6px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
+.vcard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--border2);transition:background .2s;}
+.vcard:hover{transform:translateX(2px);}
+.vcard.sel{border-color:var(--accent2);}
+.vcard.sel::before{background:var(--accent2);box-shadow:0 0 8px var(--accent2);}
+.vcard.prv::before{background:var(--accent4);}
+.vcard.prv.sel{border-color:var(--accent4);}
+.vn{font-size:13px;font-weight:600;color:#e0eeff;font-family:'Rajdhani',sans-serif;margin-bottom:3px;}
+.vs{font-size:11px;color:var(--text2);font-family:'Share Tech Mono',monospace;}
+.badge{display:inline-block;font-size:9px;font-family:'Orbitron',monospace;font-weight:700;letter-spacing:1px;padding:1px 7px;border-radius:99px;margin-left:6px;vertical-align:middle;}
+.ba{background:rgba(255,69,96,0.15);color:#ff6880;border:1px solid rgba(255,69,96,0.3);}
+.bf{background:rgba(255,120,0,0.15);color:#ff9040;border:1px solid rgba(255,120,0,0.3);}
+.bp{background:rgba(0,136,255,0.15);color:#4da8ff;border:1px solid rgba(0,136,255,0.3);}
+.bpr{background:rgba(255,170,0,0.15);color:#ffcc44;border:1px solid rgba(255,170,0,0.3);}
+.liitem{background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:7px 10px;margin-bottom:4px;display:flex;align-items:center;gap:8px;font-size:12px;transition:border-color .2s;}
+.liitem:hover{border-color:var(--border2);}
+.ldot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.lname{flex:1;color:var(--text);}
+.lid{color:var(--text3);font-size:10px;font-family:'Share Tech Mono',monospace;}
+.lrm{background:none;border:none;color:var(--accent2);cursor:pointer;font-size:14px;width:auto;padding:0 3px;margin:0;opacity:0.6;transition:opacity .2s;}
+.lrm:hover{opacity:1;}
+/* Road items - open vs blocked completely different styling */
+.ritem{border-radius:5px;padding:7px 10px;margin-bottom:5px;font-size:11px;display:flex;align-items:center;gap:7px;position:relative;overflow:hidden;transition:all .2s;}
+.ritem::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;}
+.ritem.open{background:rgba(0,30,70,0.5);border:1px solid rgba(0,100,200,0.35);}
+.ritem.open::before{background:linear-gradient(180deg,#00d4ff,#2a5a9f);}
+.ritem.blk{background:rgba(80,0,0,0.35);border:1px solid rgba(255,34,0,0.45);animation:blockPulse 2s ease-in-out infinite;}
+.ritem.blk::before{background:#ff2200;box-shadow:0 0 8px #ff2200;}
+@keyframes blockPulse{0%,100%{border-color:rgba(255,34,0,0.45);}50%{border-color:rgba(255,34,0,0.8);}}
+.ritem.blk .rnm{text-decoration:line-through;opacity:0.55;}
+.rnm{flex:1;color:var(--text);font-weight:500;}
+/* Distance badges - glowing cyan for open, glowing red for blocked */
+.rkm{font-family:'Share Tech Mono',monospace;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;}
+.ritem.open .rkm{color:#00d4ff;background:rgba(0,212,255,0.12);border:1px solid rgba(0,212,255,0.4);text-shadow:0 0 10px #00d4ff,0 0 20px rgba(0,212,255,0.5);}
+.ritem.blk .rkm{color:#ff4400;background:rgba(255,68,0,0.12);border:1px solid rgba(255,68,0,0.4);text-shadow:0 0 10px #ff2200,0 0 20px rgba(255,34,0,0.5);opacity:0.7;}
+.rbtn{font-size:9px;font-family:'Orbitron',monospace;letter-spacing:0.5px;padding:3px 8px;border-radius:3px;width:auto;margin:0;cursor:pointer;transition:all .2s;}
+.ritem.open .rbtn{background:rgba(255,34,0,0.1);border:1px solid rgba(255,34,0,0.35);color:#ff6644;}
+.ritem.open .rbtn:hover{background:rgba(255,34,0,0.22);box-shadow:0 0 8px rgba(255,34,0,0.4);}
+.ritem.blk .rbtn{background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.35);color:#00ff88;}
+.ritem.blk .rbtn:hover{background:rgba(0,255,136,0.22);box-shadow:0 0 8px rgba(0,255,136,0.4);}
+.road-status-bar{display:flex;gap:8px;margin-bottom:8px;}
+.rs-badge{flex:1;text-align:center;padding:5px;border-radius:4px;font-size:10px;font-family:'Orbitron',monospace;font-weight:600;letter-spacing:1px;}
+.rs-open{background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.25);color:var(--accent);}
+.rs-blocked{background:rgba(255,34,0,0.08);border:1px solid rgba(255,34,0,0.35);color:#ff4400;}
+.log{font-family:'Share Tech Mono',monospace;font-size:10px;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:8px;max-height:120px;overflow-y:auto;margin-bottom:6px;}
+.log::before{content:'> SYSTEM LOG';display:block;color:var(--accent);font-size:9px;letter-spacing:2px;margin-bottom:5px;padding-bottom:5px;border-bottom:1px solid var(--border);}
+.log::-webkit-scrollbar{width:3px;}
+.log::-webkit-scrollbar-thumb{background:var(--border2);}
+.log-line{padding:1px 0;color:var(--text2);}
+.lok{color:#00cc6a;}.lerr{color:#ff4444;}.linfo{color:#00aaff;}.lwarn{color:#ffaa00;}
+.rbox{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px;margin-bottom:6px;}
+.rbox.found{border-color:rgba(0,255,136,0.4);background:rgba(0,255,136,0.04);box-shadow:0 0 20px rgba(0,255,136,0.08);}
+.rbox.nf{border-color:rgba(255,68,0,0.4);background:rgba(255,68,0,0.04);}
+.rtitle{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:2px;color:var(--text2);margin-bottom:10px;}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;}
+.metric{background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:8px;text-align:center;}
+.mval{font-family:'Orbitron',monospace;font-size:18px;font-weight:700;color:var(--accent3);text-shadow:0 0 10px rgba(0,255,136,0.5);}
+.mlbl{font-size:10px;color:var(--text3);margin-top:2px;letter-spacing:1px;}
+.route{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
+.rnode{font-size:10px;font-family:'Share Tech Mono',monospace;padding:2px 8px;border-radius:99px;background:rgba(0,212,255,0.1);color:var(--accent);border:1px solid rgba(0,212,255,0.25);}
+.rnode.p{background:rgba(255,170,0,0.1);color:var(--accent4);border-color:rgba(255,170,0,0.3);}
+.rarr{color:var(--text3);font-size:12px;}
+.main{position:relative;overflow:hidden;background:radial-gradient(ellipse at 30% 40%,#080f1f,#050810 60%);}
+.main::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(0,212,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.025) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+canvas{display:block;position:relative;z-index:1;}
+.legend{position:absolute;bottom:16px;left:16px;background:rgba(5,8,16,0.93);border:1px solid var(--border2);border-radius:10px;padding:14px 16px;font-size:11px;backdrop-filter:blur(12px);z-index:5;min-width:190px;}
+.legend-title{font-family:'Orbitron',monospace;font-size:8px;letter-spacing:2px;color:var(--accent);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.lr{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;}
+.lr:last-child{margin-bottom:0;}
+.ldott{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.road-sw{width:22px;height:4px;border-radius:2px;flex-shrink:0;}
+.sw-open{background:#2a5a9f;box-shadow:0 0 6px #2a5a9f;}
+.sw-path{background:#ff4560;box-shadow:0 0 8px #ff4560;}
+.sw-blocked{background:repeating-linear-gradient(90deg,#ff2200 0,#ff2200 4px,transparent 4px,transparent 8px);}
+.mctrl{position:absolute;top:16px;right:16px;display:flex;flex-direction:column;gap:4px;z-index:5;}
+.mbtn{background:rgba(5,8,16,0.9);border:1px solid var(--border2);color:var(--text2);border-radius:6px;padding:7px 14px;font-size:11px;font-family:'Orbitron',monospace;font-weight:600;letter-spacing:1px;cursor:pointer;width:auto;margin:0;transition:all .2s;backdrop-filter:blur(8px);}
+.mbtn:hover{color:var(--accent);border-color:var(--accent);box-shadow:0 0 10px rgba(0,212,255,0.2);}
+#tip{position:absolute;background:rgba(5,8,16,0.95);border:1px solid var(--accent);border-radius:8px;padding:8px 12px;font-size:12px;pointer-events:none;display:none;z-index:10;color:var(--text);white-space:nowrap;box-shadow:0 0 20px rgba(0,212,255,0.2);font-family:'Rajdhani',sans-serif;font-weight:500;}
+.scanline{position:fixed;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(0,212,255,0.12),transparent);animation:scan 8s linear infinite;pointer-events:none;z-index:100;}
+@keyframes scan{0%{transform:translateY(-2px);}100%{transform:translateY(100vh);}}
+</style>
+</head>
+<body>
+<div class="scanline"></div>
+<div class="topbar">
+  <div class="sirens"><div class="siren red"></div><div class="siren blue"></div></div>
+  <div>
+    <div class="topbar-title">EMERGENCY DISPATCH SYSTEM</div>
+    <div class="topbar-sub">OOP C++ &mdash; Dijkstra's Shortest Path &mdash; Live Backend</div>
+  </div>
+  <div class="topbar-right"><div class="status-dot"></div><div class="status-text">SYSTEM ONLINE</div></div>
+</div>
+<div class="layout">
+  <div class="sidebar">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('dispatch')">DISPATCH</div>
+      <div class="tab" onclick="switchTab('locs')">NODES</div>
+      <div class="tab" onclick="switchTab('roads')">ROADS</div>
+      <div class="tab" onclick="switchTab('vehs')">FLEET</div>
+    </div>
+    <div id="p-dispatch" class="panel active">
+      <div class="section-label">Select Vehicle</div>
+      <div id="vcards"></div>
+      <div class="section-label">Target Destination</div>
+      <select id="sdest"></select>
+      <button class="btn-dispatch" onclick="findPath()">&#9654;&nbsp; FIND SHORTEST PATH</button>
+      <button class="btn-ghost" onclick="apiLoadSample()">&#8635;&nbsp; RELOAD SAMPLE CITY</button>
+      <div class="section-label">Dispatch Result</div>
+      <div id="result"></div>
+      <div class="section-label">System Log</div>
+      <div id="log" class="log"></div>
+    </div>
+    <div id="p-locs" class="panel">
+      <div class="section-label">Add New Node</div>
+      <input id="lname" placeholder="Location name">
+      <select id="ltype"><option value="intersection">Intersection</option><option value="hospital">Hospital</option><option value="station">Station</option><option value="landmark">Landmark</option></select>
+      <button class="btn-green" onclick="apiAddLoc()">+ ADD LOCATION</button>
+      <div class="section-label">All Locations</div>
+      <div id="llist"></div>
+    </div>
+    <div id="p-roads" class="panel">
+      <div class="section-label">Add New Road</div>
+      <div class="r2"><select id="rfrom"></select><select id="rto"></select></div>
+      <div class="r2"><input id="rdist" type="number" value="2.0" min="0.1" step="0.1" placeholder="km"><input id="rname" placeholder="Road name"></div>
+      <button class="btn-blue" onclick="apiAddRoad()">+ ADD ROAD</button>
+      <div class="section-label">Road Network</div>
+      <div class="road-status-bar"><div class="rs-badge rs-open" id="rs-open">0 OPEN</div><div class="rs-badge rs-blocked" id="rs-blocked">0 BLOCKED</div></div>
+      <div id="rlist"></div>
+    </div>
+    <div id="p-vehs" class="panel">
+      <div class="section-label">Add Vehicle</div>
+      <input id="vname" placeholder="Vehicle name">
+      <div class="r2"><select id="vtype"><option value="ambulance">Ambulance</option><option value="firetruck">Fire Truck</option><option value="police">Police Car</option><option value="private">Private</option></select><select id="vloc"></select></div>
+      <button class="btn-green" onclick="apiAddVeh()">+ ADD VEHICLE</button>
+      <div class="section-label">All Vehicles</div>
+      <div id="avlist"></div>
+    </div>
+  </div>
+  <div class="main" id="main">
+    <canvas id="c"></canvas>
+    <div class="mctrl">
+      <button class="mbtn" onclick="zoomIn()">ZOOM +</button>
+      <button class="mbtn" onclick="zoomOut()">ZOOM -</button>
+      <button class="mbtn" onclick="resetView()">RESET</button>
+      <button class="mbtn" onclick="autoArrange()">AUTO</button>
+    </div>
+    <div class="legend">
+      <div class="legend-title">MAP LEGEND</div>
+      <div class="lr"><div class="ldott" style="background:#ff4560;box-shadow:0 0 6px #ff4560"></div><span style="color:#ff8898">Hospital</span></div>
+      <div class="lr"><div class="ldott" style="background:#ffaa00;box-shadow:0 0 6px #ffaa00"></div><span style="color:#ffcc66">Station</span></div>
+      <div class="lr"><div class="ldott" style="background:#00ff88;box-shadow:0 0 6px #00ff88"></div><span style="color:#66ffbb">Landmark</span></div>
+      <div class="lr"><div class="ldott" style="background:#00d4ff;box-shadow:0 0 6px #00d4ff"></div><span style="color:#66e8ff">Intersection</span></div>
+      <div style="height:1px;background:var(--border);margin:8px 0"></div>
+      <div class="lr"><div class="road-sw sw-open"></div><span style="color:#4da8ff">Open Road</span></div>
+      <div class="lr"><div class="road-sw sw-path"></div><span style="color:#ff8898">Shortest Path</span></div>
+      <div class="lr"><div class="road-sw sw-blocked"></div><span style="color:#ff6644">Blocked Road</span></div>
+      <div style="height:1px;background:var(--border);margin:8px 0"></div>
+      <div style="color:var(--text2);font-size:10px;font-family:'Share Tech Mono',monospace;line-height:1.6">
+        DRAG nodes &bull; SCROLL zoom<br>
+        <span style="color:#00d4ff">CYAN</span> dist = open road<br>
+        <span style="color:#ff4400">RED</span> dist = blocked road
+      </div>
+    </div>
+    <div id="tip"></div>
+  </div>
+</div>
+<script>
+var state={locations:[],roads:[],vehicles:[]};
+var positions={};var hlPath=[];var selVeh=-1;
+var zoom=1,panX=0,panY=0,dragNode=null,dragCanvas=false,lastMX=0,lastMY=0;
+var animTick=0;
+setInterval(function(){animTick++;draw();},80);
+var canvas=document.getElementById('c');
+var ctx=canvas.getContext('2d');
+function W(){return canvas.width;}function H(){return canvas.height;}
+function resizeCanvas(){var m=document.getElementById('main');canvas.width=m.offsetWidth;canvas.height=m.offsetHeight;}
+window.addEventListener('resize',resizeCanvas);
+function nodeColor(t){return{hospital:'#ff4560',station:'#ffaa00',landmark:'#00ff88',intersection:'#00d4ff'}[t]||'#888';}
+function nodeGlow(t){return{hospital:'rgba(255,69,96,0.35)',station:'rgba(255,170,0,0.35)',landmark:'rgba(0,255,136,0.35)',intersection:'rgba(0,212,255,0.35)'}[t]||'rgba(136,136,136,0.2)';}
+function s2w(x,y){return{x:(x-panX)/zoom,y:(y-panY)/zoom};}
+function ensurePos(){
+  for(var i=0;i<state.locations.length;i++){
+    var l=state.locations[i];
+    if(!positions[l.id]){
+      if(l.x&&l.y){positions[l.id]={x:l.x,y:l.y};}
+      else{var cx=W()/2,cy=H()/2,r=Math.min(W(),H())*0.35;var angle=(2*Math.PI*i/state.locations.length)-Math.PI/2;positions[l.id]={x:(cx+r*Math.cos(angle)-panX)/zoom,y:(cy+r*Math.sin(angle)-panY)/zoom};}
+    }
+  }
+}
+function isOnPath(from,to){for(var k=0;k<hlPath.length-1;k++){if((hlPath[k]==from&&hlPath[k+1]==to)||(hlPath[k]==to&&hlPath[k+1]==from))return true;}return false;}
+
+function draw(){
+  ctx.clearRect(0,0,W(),H());
+  ensurePos();
+  ctx.save();ctx.translate(panX,panY);ctx.scale(zoom,zoom);
+
+  // Roads
+  for(var i=0;i<state.roads.length;i++){
+    var r=state.roads[i];
+    var p1=positions[r.from],p2=positions[r.to];
+    if(!p1||!p2)continue;
+    var onP=isOnPath(r.from,r.to);
+    ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);
+
+    if(r.blocked){
+      // Animated dashed blocked road - bright red dashes on dark red
+      var dash=(animTick*2.5)%16;
+      ctx.setLineDash([7,5]);ctx.lineDashOffset=-dash;
+      ctx.strokeStyle='#ff2200';ctx.lineWidth=3.5/zoom;
+      ctx.shadowColor='#ff2200';ctx.shadowBlur=12;ctx.stroke();
+      ctx.setLineDash([7,5]);ctx.lineDashOffset=-dash;
+      ctx.strokeStyle='rgba(180,0,0,0.4)';ctx.lineWidth=6/zoom;
+      ctx.shadowBlur=0;ctx.globalAlpha=0.5;ctx.stroke();
+      ctx.globalAlpha=1;ctx.setLineDash([]);ctx.lineDashOffset=0;ctx.shadowBlur=0;
+    } else if(onP){
+      ctx.setLineDash([]);
+      ctx.shadowColor='#ff4560';ctx.shadowBlur=18;
+      ctx.strokeStyle='#ff4560';ctx.lineWidth=5/zoom;ctx.stroke();
+      ctx.shadowColor='#ffaaaa';ctx.shadowBlur=4;
+      ctx.strokeStyle='rgba(255,200,200,0.6)';ctx.lineWidth=1.5/zoom;ctx.stroke();
+      ctx.shadowBlur=0;
+    } else {
+      ctx.setLineDash([]);
+      ctx.shadowColor='#1e3a6f';ctx.shadowBlur=5;
+      ctx.strokeStyle='#1e3a5f';ctx.lineWidth=2.5/zoom;ctx.stroke();
+      ctx.shadowBlur=0;
+    }
+    ctx.shadowBlur=0;ctx.setLineDash([]);ctx.lineDashOffset=0;
+
+    // Distance label
+    var mx=(p1.x+p2.x)/2,my=(p1.y+p2.y)/2;
+    var distStr=r.dist.toFixed(1)+'km';
+    var fs=Math.max(8,10/zoom);
+    ctx.font='bold '+fs+'px "Share Tech Mono",monospace';
+    var tw=ctx.measureText(distStr).width;
+    var pw=tw+10,ph=fs+7;
+
+    if(!r.blocked){
+      // Glowing cyan pill for open roads
+      ctx.beginPath();
+      if(ctx.roundRect)ctx.roundRect(mx-pw/2,my-ph/2,pw,ph,ph/2);
+      else ctx.rect(mx-pw/2,my-ph/2,pw,ph);
+      ctx.fillStyle=onP?'rgba(255,69,96,0.22)':'rgba(0,20,50,0.88)';
+      ctx.shadowColor=onP?'#ff4560':'#00d4ff';ctx.shadowBlur=onP?10:7;
+      ctx.fill();ctx.shadowBlur=0;
+      ctx.strokeStyle=onP?'rgba(255,69,96,0.7)':'rgba(0,212,255,0.5)';
+      ctx.lineWidth=0.8/zoom;ctx.stroke();
+      ctx.fillStyle=onP?'#ff9aaa':'#00d4ff';
+      ctx.shadowColor=onP?'#ff4560':'#00d4ff';ctx.shadowBlur=onP?8:10;
+      ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(distStr,mx,my);
+      ctx.shadowBlur=0;
+    } else {
+      // Glowing red pill for blocked roads
+      ctx.beginPath();
+      if(ctx.roundRect)ctx.roundRect(mx-pw/2,my-ph/2,pw,ph,ph/2);
+      else ctx.rect(mx-pw/2,my-ph/2,pw,ph);
+      ctx.fillStyle='rgba(60,0,0,0.82)';
+      ctx.shadowColor='#ff2200';ctx.shadowBlur=6;ctx.fill();ctx.shadowBlur=0;
+      ctx.strokeStyle='rgba(255,34,0,0.6)';ctx.lineWidth=0.8/zoom;ctx.stroke();
+      ctx.fillStyle='rgba(255,80,0,0.65)';
+      ctx.shadowColor='#ff2200';ctx.shadowBlur=5;
+      ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(distStr,mx,my);
+      ctx.shadowBlur=0;
+      // strikethrough
+      ctx.beginPath();ctx.moveTo(mx-tw/2,my);ctx.lineTo(mx+tw/2,my);
+      ctx.strokeStyle='rgba(255,68,0,0.7)';ctx.lineWidth=0.8/zoom;ctx.stroke();
+    }
+  }
+
+  // Nodes
+  for(var i=0;i<state.locations.length;i++){
+    var l=state.locations[i];var pos=positions[l.id];if(!pos)continue;
+    var onP=hlPath.indexOf(l.id)>=0||hlPath.indexOf(String(l.id))>=0;
+    var rad=(onP?18:13)/zoom;var col=nodeColor(l.type);var glow=nodeGlow(l.type);
+
+    if(onP){var pulse=0.7+0.3*Math.sin(animTick*0.3);ctx.beginPath();ctx.arc(pos.x,pos.y,rad+9/zoom*pulse,0,Math.PI*2);ctx.fillStyle=glow.replace('0.35','0.12');ctx.fill();}
+    ctx.beginPath();ctx.arc(pos.x,pos.y,rad+4/zoom,0,Math.PI*2);ctx.fillStyle=glow.replace('0.35',onP?'0.3':'0.1');ctx.fill();
+    ctx.beginPath();ctx.arc(pos.x,pos.y,rad,0,Math.PI*2);ctx.fillStyle=col;ctx.shadowColor=col;ctx.shadowBlur=onP?18:10;ctx.fill();ctx.shadowBlur=0;
+    ctx.beginPath();ctx.arc(pos.x,pos.y,rad*0.5,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,0.13)';ctx.fill();
+    if(onP){ctx.beginPath();ctx.arc(pos.x,pos.y,rad,0,Math.PI*2);ctx.strokeStyle='rgba(255,255,255,0.75)';ctx.lineWidth=1.5/zoom;ctx.stroke();}
+
+    ctx.fillStyle='#fff';ctx.font='bold '+(10/zoom)+'px "Orbitron",monospace';
+    ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor=col;ctx.shadowBlur=5;
+    ctx.fillText(l.id,pos.x,pos.y);ctx.shadowBlur=0;
+
+    var fs2=Math.max(8,10/zoom);ctx.font=fs2+'px "Rajdhani",sans-serif';
+    ctx.fillStyle=onP?col:'rgba(170,200,235,0.85)';ctx.textBaseline='alphabetic';
+    var lab=l.name.length>16?l.name.slice(0,15)+'...':l.name;
+    ctx.shadowColor=onP?col:'transparent';ctx.shadowBlur=onP?6:0;
+    ctx.fillText(lab,pos.x,pos.y+rad+13/zoom);ctx.shadowBlur=0;
+  }
+
+  // Vehicle markers
+  var vc={ambulance:'#ff4560',firetruck:'#ff7700',police:'#4488ff',private:'#ffaa00'};
+  var vi={ambulance:'A',firetruck:'F',police:'P',private:'G'};
+  for(var i=0;i<state.vehicles.length;i++){
+    var v=state.vehicles[i];var pos=positions[v.locId];if(!pos)continue;
+    var vr=7/zoom,col2=vc[v.type]||'#888',ox=-18/zoom,oy=-18/zoom;
+    ctx.beginPath();ctx.arc(pos.x+ox,pos.y+oy,vr+3/zoom,0,Math.PI*2);ctx.fillStyle=col2+'33';ctx.fill();
+    ctx.beginPath();ctx.arc(pos.x+ox,pos.y+oy,vr,0,Math.PI*2);ctx.fillStyle=col2;ctx.shadowColor=col2;ctx.shadowBlur=10;ctx.fill();ctx.shadowBlur=0;
+    ctx.fillStyle='#fff';ctx.font='bold '+(6/zoom)+'px "Orbitron",monospace';
+    ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(vi[v.type]||'V',pos.x+ox,pos.y+oy);
+  }
+  ctx.restore();
+}
+
+function nodeAt(mx,my){var w=s2w(mx,my);for(var id in positions){var p=positions[id],dx=w.x-p.x,dy=w.y-p.y;if(Math.sqrt(dx*dx+dy*dy)<20/zoom)return id;}return null;}
+canvas.addEventListener('mousedown',function(e){var r=canvas.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;var n=nodeAt(mx,my);if(n){dragNode=n;}else{dragCanvas=true;}lastMX=mx;lastMY=my;});
+canvas.addEventListener('mousemove',function(e){
+  var r=canvas.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+  if(dragNode){var w=s2w(mx,my);positions[dragNode]={x:w.x,y:w.y};}
+  else if(dragCanvas){panX+=mx-lastMX;panY+=my-lastMY;}
+  else{
+    var n=nodeAt(mx,my),tip=document.getElementById('tip');
+    if(n){var l=null;for(var i=0;i<state.locations.length;i++){if(state.locations[i].id==n){l=state.locations[i];break;}}
+      if(l){tip.style.display='block';tip.style.left=(mx+14)+'px';tip.style.top=(my-12)+'px';
+        tip.innerHTML='<span style="color:'+nodeColor(l.type)+';font-family:Orbitron,monospace;font-size:11px;font-weight:700">'+l.name+'</span><br><span style="color:#607090;font-family:Share Tech Mono,monospace;font-size:10px">ID:'+l.id+' &bull; '+l.type.toUpperCase()+'</span>';
+      }
+    }else{tip.style.display='none';}
+  }
+  lastMX=mx;lastMY=my;
+});
+canvas.addEventListener('mouseup',function(){dragNode=null;dragCanvas=false;});
+canvas.addEventListener('mouseleave',function(){dragNode=null;dragCanvas=false;document.getElementById('tip').style.display='none';});
+canvas.addEventListener('wheel',function(e){e.preventDefault();var r=canvas.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;var f=e.deltaY<0?1.12:0.88;panX=mx-(mx-panX)*f;panY=my-(my-panY)*f;zoom=Math.max(0.2,Math.min(4,zoom*f));},{passive:false});
+function zoomIn(){zoom=Math.min(4,zoom*1.2);}
+function zoomOut(){zoom=Math.max(0.2,zoom/1.2);}
+function resetView(){zoom=1;panX=0;panY=0;}
+function autoArrange(){var ids=Object.keys(positions);var cx=W()/2,cy=H()/2,r=Math.min(W(),H())*0.36;for(var i=0;i<ids.length;i++){var angle=(2*Math.PI*i/ids.length)-Math.PI/2;positions[ids[i]]={x:(cx+r*Math.cos(angle)-panX)/zoom,y:(cy+r*Math.sin(angle)-panY)/zoom};}}
+
+function switchTab(t){var tabs=['dispatch','locs','roads','vehs'];for(var i=0;i<tabs.length;i++){document.getElementById('p-'+tabs[i]).classList.toggle('active',tabs[i]===t);document.querySelectorAll('.tab')[i].classList.toggle('active',tabs[i]===t);}refreshUI();}
+function log(msg,cls){var el=document.getElementById('log');var d=document.createElement('div');d.className='log-line '+(cls||'');d.textContent=new Date().toLocaleTimeString()+'  '+msg;el.appendChild(d);el.scrollTop=el.scrollHeight;}
+function api(url,cb){var x=new XMLHttpRequest();x.open('GET',url);x.onload=function(){try{var j=JSON.parse(x.responseText);cb(j);}catch(e){log('Parse error: '+e,'lerr');}};x.onerror=function(){log('C++ server offline. Using demo mode.','lwarn');};x.send();}
+function applyState(j){state=j;refreshUI();}
+function apiLoadSample(){log('Loading sample city...','linfo');api('/api/load-sample',function(j){applyState(j);positions={};hlPath=[];selVeh=-1;log('Sample city loaded.','lok');});}
+function apiAddLoc(){var n=document.getElementById('lname').value.trim();var t=document.getElementById('ltype').value;if(!n)return alert('Enter a name');api('/api/add-location?name='+encodeURIComponent(n)+'&type='+t,function(j){applyState(j);document.getElementById('lname').value='';log('Location added: '+n,'lok');});}
+function apiRemoveLoc(id){api('/api/remove-location?id='+id,function(j){delete positions[id];applyState(j);log('Location removed: #'+id,'lwarn');});}
+function apiAddRoad(){var fr=document.getElementById('rfrom').value;var to=document.getElementById('rto').value;var dist=document.getElementById('rdist').value;var name=document.getElementById('rname').value||'Road';if(fr===to)return alert('Select two different locations');api('/api/add-road?from='+fr+'&to='+to+'&dist='+dist+'&name='+encodeURIComponent(name),function(j){applyState(j);document.getElementById('rname').value='';log('Road added: '+name,'lok');});}
+function apiToggleRoad(idx){var r=state.roads[idx];var blocking=!r.blocked;api('/api/block-road?from='+r.from+'&to='+r.to+'&block='+blocking,function(j){hlPath=[];applyState(j);log('Road '+r.name+' '+(blocking?'BLOCKED':'UNBLOCKED'),blocking?'lerr':'lok');});}
+function apiAddVeh(){var n=document.getElementById('vname').value.trim();var t=document.getElementById('vtype').value;var loc=document.getElementById('vloc').value;if(!n)return alert('Enter a name');var speeds={ambulance:80,firetruck:70,police:100,private:180};api('/api/add-vehicle?name='+encodeURIComponent(n)+'&type='+t+'&loc='+loc+'&speed='+speeds[t],function(j){applyState(j);document.getElementById('vname').value='';log('Vehicle added: '+n,'lok');});}
+
+function findPath(){
+  if(selVeh<0||selVeh>=state.vehicles.length)return alert('Select a vehicle first');
+  var dest=parseInt(document.getElementById('sdest').value);
+  var v=state.vehicles[selVeh];
+  log('DISPATCHING: '+v.name+' -> #'+dest,'linfo');
+  api('/api/path?from='+v.locId+'&to='+dest,function(j){
+    var el=document.getElementById('result');
+    if(!j.found){hlPath=[];el.innerHTML='<div class="rbox nf"><div class="rtitle">DISPATCH RESULT</div><span style="color:#ff4444;font-family:Orbitron,monospace;font-size:12px;font-weight:700">&#9888; NO PATH FOUND</span><br><span style="color:#607090;font-size:11px">All routes may be blocked.</span></div>';log('NO PATH FOUND','lerr');return;}
+    hlPath=j.path;
+    var mins=(j.dist/v.speed*60).toFixed(1);
+    var names=j.path.map(function(id){for(var k=0;k<state.locations.length;k++){if(state.locations[k].id==id)return state.locations[k].name;}return id;});
+    var isP=v.isPrivate;
+    var route=names.map(function(n,i){return(i?'<span class="rarr">&#8594;</span>':'')+'<span class="rnode'+(isP?' p':'')+'">'+n+'</span>';}).join('');
+    el.innerHTML='<div class="rbox found"><div class="rtitle">DISPATCH RESULT &mdash; '+v.name.toUpperCase()+'</div><div class="metrics"><div class="metric"><div class="mval">'+j.dist.toFixed(2)+'</div><div class="mlbl">KM DIST</div></div><div class="metric"><div class="mval">'+mins+'</div><div class="mlbl">MIN ETA</div></div><div class="metric"><div class="mval">'+j.path.length+'</div><div class="mlbl">STOPS</div></div></div><div class="route">'+route+'</div><div style="font-size:10px;color:#304060;margin-top:8px;font-family:Share Tech Mono,monospace">'+v.speed+' KM/H'+(isP?' &bull; PRIVATE &bull; NO PRIORITY':' &bull; EMERGENCY PRIORITY')+'</div></div>';
+    log('PATH: '+names.join(' > ')+' | '+j.dist.toFixed(2)+'km | '+mins+'min','lok');
+  });
+}
+
+function refreshUI(){
+  var bc={ambulance:'ba',firetruck:'bf',police:'bp',private:'bpr'};
+  var bt={ambulance:'AMB',firetruck:'FIRE',police:'POL',private:'PRV'};
+  var html='';
+  for(var i=0;i<state.vehicles.length;i++){var v=state.vehicles[i];var loc='';for(var k=0;k<state.locations.length;k++){if(state.locations[k].id==v.locId){loc=state.locations[k].name;break;}}html+='<div class="vcard'+(v.isPrivate?' prv':'')+(i===selVeh?' sel':'')+'" onclick="selVeh='+i+';refreshUI()"><div class="vn">'+v.name+'<span class="badge '+bc[v.type]+'">'+bt[v.type]+'</span></div><div class="vs">'+v.speed+' KM/H &bull; '+loc+'</div></div>';}
+  document.getElementById('vcards').innerHTML=html||'<div style="color:#304060;font-size:12px;font-family:Share Tech Mono,monospace">No vehicles. Load sample city.</div>';
+  var opts='';for(var i=0;i<state.locations.length;i++){var l=state.locations[i];opts+='<option value="'+l.id+'">'+l.name+' (#'+l.id+')</option>';}
+  document.getElementById('sdest').innerHTML=opts;
+  var clrs={hospital:'#ff4560',station:'#ffaa00',landmark:'#00ff88',intersection:'#00d4ff'};
+  var lhtml='';for(var i=0;i<state.locations.length;i++){var l=state.locations[i];lhtml+='<div class="liitem"><div class="ldot" style="background:'+clrs[l.type]+';box-shadow:0 0 5px '+clrs[l.type]+'"></div><div class="lname">'+l.name+'</div><div class="lid">#'+l.id+'</div><button class="lrm" onclick="apiRemoveLoc('+l.id+')">&#10005;</button></div>';}
+  document.getElementById('llist').innerHTML=lhtml||'<div style="color:#304060;font-size:12px">No locations.</div>';
+  document.getElementById('rfrom').innerHTML=opts;document.getElementById('rto').innerHTML=opts;
+  var openC=0,blkC=0,rhtml='';
+  for(var i=0;i<state.roads.length;i++){var r=state.roads[i];var cls=r.blocked?'blk':'open';if(r.blocked)blkC++;else openC++;rhtml+='<div class="ritem '+cls+'"><div class="rnm">'+r.name+'</div><span class="rkm">'+r.dist.toFixed(1)+'km</span><button class="rbtn" onclick="apiToggleRoad('+i+')">'+(r.blocked?'OPEN':'BLOCK')+'</button></div>';}
+  document.getElementById('rlist').innerHTML=rhtml||'<div style="color:#304060;font-size:12px">No roads.</div>';
+  document.getElementById('rs-open').textContent=openC+' OPEN';document.getElementById('rs-blocked').textContent=blkC+' BLOCKED';
+  document.getElementById('vloc').innerHTML=opts;
+  var avhtml='';for(var i=0;i<state.vehicles.length;i++){var v=state.vehicles[i];var loc='';for(var k=0;k<state.locations.length;k++){if(state.locations[k].id==v.locId){loc=state.locations[k].name;break;}}avhtml+='<div class="vcard'+(v.isPrivate?' prv':'')+'"><div class="vn">'+v.name+'<span class="badge '+bc[v.type]+'">'+bt[v.type]+'</span></div><div class="vs">'+v.speed+' KM/H &bull; '+loc+'</div></div>';}
+  document.getElementById('avlist').innerHTML=avhtml||'<div style="color:#304060;font-size:12px">No vehicles.</div>';
+}
+
+window.addEventListener('load',function(){
+  resizeCanvas();
+  var x=new XMLHttpRequest();x.open('GET','/api/load-sample');x.timeout=1500;
+  x.onload=function(){try{var j=JSON.parse(x.responseText);state=j;positions={};refreshUI();log('Connected to C++ backend.','lok');}catch(e){loadLocalDemo();}};
+  x.ontimeout=x.onerror=function(){loadLocalDemo();};
+  x.send();
+});
+
+function loadLocalDemo(){
+  log('Demo mode (no C++ server). All features work locally.','lwarn');
+  var nid=1;
+  function addL(n,t,x,y){var id=nid++;state.locations.push({id:id,name:n,type:t,x:x,y:y});return id;}
+  function addR(f,t,d,n){state.roads.push({from:String(f),to:String(t),dist:d,name:n,blocked:false});}
+  state={locations:[],roads:[],vehicles:[]};
+  var h1=addL('City Hospital','hospital',400,80),s1=addL('Fire Station Alpha','station',120,200),s2=addL('Police HQ','station',680,200),a=addL('Main Square','landmark',400,280),b=addL('North Junction','intersection',240,190),c=addL('East Market','intersection',570,340),d=addL('West Park','intersection',180,340),e=addL('South Bridge','intersection',400,460),f=addL('University Road','intersection',230,410),g=addL('Industrial Zone','intersection',560,460);
+  addR(h1,a,2.5,'Hospital Rd');addR(h1,b,3.1,'North Ave');addR(s1,a,1.8,'Station Blvd');addR(s1,d,2.0,'Park Lane');addR(s2,e,1.5,'South St');addR(s2,c,2.2,'Market Link');addR(a,b,1.2,'Central Ave');addR(a,c,1.6,'East Rd');addR(a,d,1.4,'West Rd');addR(b,f,2.0,'Uni Connector');addR(c,g,3.0,'Industrial Hwy');addR(d,e,2.5,'Bridge Rd');addR(e,g,1.8,'South Industrial');addR(f,g,2.3,'Ring Road');addR(b,c,1.9,'Cross Junction');
+  state.vehicles=[{id:1,name:'Ambulance A1',type:'ambulance',locId:h1,speed:80,isPrivate:false},{id:2,name:'Fire Truck F1',type:'firetruck',locId:s1,speed:70,isPrivate:false},{id:3,name:'Police Car P1',type:'police',locId:s2,speed:100,isPrivate:false},{id:4,name:'G63 AMG',type:'private',locId:f,speed:180,isPrivate:true}];
+  positions={};refreshUI();
+  log('10 locations, 15 roads, 4 vehicles loaded.','lok');
+  log('G63 AMG [PRIVATE] at University Road','lwarn');
+
+  function dijkstra(startId,endId){
+    var dist={},prev={},adj={};
+    for(var i=0;i<state.locations.length;i++){var id=state.locations[i].id;dist[id]=Infinity;prev[id]=null;adj[id]=[];}
+    for(var i=0;i<state.roads.length;i++){var r=state.roads[i];if(!r.blocked){adj[r.from].push({to:r.to,w:r.dist});adj[r.to].push({to:r.from,w:r.dist});}}
+    dist[startId]=0;var visited=new Set();
+    while(true){var u=null;for(var id in dist){if(!visited.has(id)&&(u===null||dist[id]<dist[u]))u=id;}if(u===null||dist[u]===Infinity)break;if(u==endId)break;visited.add(u);var nbrs=adj[u]||[];for(var i=0;i<nbrs.length;i++){var v=nbrs[i].to,w=nbrs[i].w;if(dist[u]+w<dist[v]){dist[v]=dist[u]+w;prev[v]=String(u);}}}
+    if(dist[endId]===Infinity)return null;
+    var path=[];for(var at=String(endId);at!==null;at=prev[at])path.unshift(parseInt(at));
+    return{path:path,dist:dist[endId]};
+  }
+
+  window.findPath=function(){
+    if(selVeh<0||selVeh>=state.vehicles.length)return alert('Select a vehicle first');
+    var dest=parseInt(document.getElementById('sdest').value);
+    var v=state.vehicles[selVeh];
+    log('DISPATCHING: '+v.name,'linfo');
+    var result=dijkstra(v.locId,dest);
+    var el=document.getElementById('result');
+    if(!result){hlPath=[];el.innerHTML='<div class="rbox nf"><div class="rtitle">DISPATCH RESULT</div><span style="color:#ff4444;font-family:Orbitron,monospace;font-size:12px;font-weight:700">&#9888; NO PATH FOUND</span></div>';log('NO PATH FOUND','lerr');return;}
+    hlPath=result.path;
+    var mins=(result.dist/v.speed*60).toFixed(1);
+    var names=result.path.map(function(id){for(var k=0;k<state.locations.length;k++){if(state.locations[k].id==id)return state.locations[k].name;}return id;});
+    var isP=v.isPrivate;
+    var route=names.map(function(n,i){return(i?'<span class="rarr">&#8594;</span>':'')+'<span class="rnode'+(isP?' p':'')+'">'+n+'</span>';}).join('');
+    el.innerHTML='<div class="rbox found"><div class="rtitle">DISPATCH RESULT &mdash; '+v.name.toUpperCase()+'</div><div class="metrics"><div class="metric"><div class="mval">'+result.dist.toFixed(2)+'</div><div class="mlbl">KM DIST</div></div><div class="metric"><div class="mval">'+mins+'</div><div class="mlbl">MIN ETA</div></div><div class="metric"><div class="mval">'+result.path.length+'</div><div class="mlbl">STOPS</div></div></div><div class="route">'+route+'</div><div style="font-size:10px;color:#304060;margin-top:8px;font-family:Share Tech Mono,monospace">'+v.speed+' KM/H'+(isP?' &bull; PRIVATE &bull; NO PRIORITY':' &bull; EMERGENCY PRIORITY')+'</div></div>';
+    log('PATH: '+names.join(' > ')+' | '+result.dist.toFixed(2)+'km | '+mins+'min','lok');
+  };
+  window.apiLoadSample=function(){loadLocalDemo();};
+  window.apiAddLoc=function(){var n=document.getElementById('lname').value.trim();var t=document.getElementById('ltype').value;if(!n)return;var id=nid++;state.locations.push({id:id,name:n,type:t,x:0,y:0});positions[id]=null;log('Added: '+n,'lok');document.getElementById('lname').value='';refreshUI();};
+  window.apiRemoveLoc=function(id){state.locations=state.locations.filter(function(l){return l.id!=id;});state.roads=state.roads.filter(function(r){return r.from!=id&&r.to!=id;});delete positions[id];refreshUI();};
+  window.apiAddRoad=function(){var fr=document.getElementById('rfrom').value;var to=document.getElementById('rto').value;var dist=parseFloat(document.getElementById('rdist').value);var name=document.getElementById('rname').value||'Road';if(fr===to)return;state.roads.push({from:fr,to:to,dist:dist,name:name,blocked:false});document.getElementById('rname').value='';refreshUI();};
+  window.apiToggleRoad=function(i){state.roads[i].blocked=!state.roads[i].blocked;hlPath=[];log('Road '+(state.roads[i].blocked?'BLOCKED':'OPEN'),state.roads[i].blocked?'lerr':'lok');refreshUI();};
+  window.apiAddVeh=function(){var n=document.getElementById('vname').value.trim();var t=document.getElementById('vtype').value;var loc=parseInt(document.getElementById('vloc').value);if(!n)return;var speeds={ambulance:80,firetruck:70,police:100,private:180};state.vehicles.push({id:nid++,name:n,type:t,locId:loc,speed:speeds[t],isPrivate:t==='private'});document.getElementById('vname').value='';refreshUI();};
+}
+</script>
+</body>
+</html>
